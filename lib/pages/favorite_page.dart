@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:resepku/pages/detail_page.dart';
 import 'package:resepku/providers/favorite_provider.dart';
-import 'package:resepku/widgets/recipe_tile.dart';
+import 'package:resepku/widgets/recipe_image.dart';
 
 class FavoritePage extends StatelessWidget {
   const FavoritePage({super.key});
@@ -34,6 +35,7 @@ class FavoritePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final favorite = context.watch<FavoriteProvider>();
+    final items = favorite.items.toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -42,7 +44,6 @@ class FavoritePage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.delete_sweep),
             tooltip: 'Hapus Semua',
-            // Tombol nonaktif jika daftar favorit kosong
             onPressed: favorite.count == 0
                 ? null
                 : () => _showClearConfirmationDialog(context),
@@ -56,10 +57,61 @@ class FavoritePage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
             )
-          : ListView(
-              children: [
-                for (final recipe in favorite.items) RecipeTile(recipe: recipe),
-              ],
+          : ListView.separated(
+              itemCount: items.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final recipe = items[index];
+
+                return Dismissible(
+                  key: ValueKey(recipe.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) {
+                    context.read<FavoriteProvider>().toggle(recipe);
+
+                    ScaffoldMessenger.of(context).clearSnackBars();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${recipe.name} dihapus dari favorit'),
+                      ),
+                    );
+                  },
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: RecipeImage(
+                          url: recipe.image,
+                          cacheWidth: 160,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      recipe.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(recipe.cuisine),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DetailPage(recipe: recipe),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
     );
   }
