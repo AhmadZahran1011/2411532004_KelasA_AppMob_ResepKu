@@ -142,6 +142,32 @@ class _DetailPageState extends State<DetailPage> {
               );
             },
           ),
+          // ... SliverList.builder untuk bahan (sudah ada dari Latihan 3 Modul 7)
+
+          // Judul "Langkah": widget biasa dibungkus SliverToBoxAdapter
+          if (recipe.instructions.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: Text('Langkah', style: textTheme.titleLarge),
+              ),
+            ),
+
+            // Daftar langkah: lazy, sama seperti daftar bahan
+            SliverList.builder(
+              itemCount: recipe.instructions.length,
+              itemBuilder: (context, index) => ListTile(
+                dense: true,
+                leading: CircleAvatar(
+                  radius: 12,
+                  child: Text('${index + 1}'),
+                ),
+                title: Text(recipe.instructions[index]),
+              ),
+            ),
+
+            // Ruang di bawah langkah terakhir
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
           // Jarak bawah agar list terakhir nyaman di-scroll
           const SliverToBoxAdapter(
