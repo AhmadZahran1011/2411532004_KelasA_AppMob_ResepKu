@@ -25,7 +25,21 @@ class RecipeService {
         .toList();
   }
 
-  /// Status 2xx berarti berhasil. Selain itu, lempar exception
+  /// GET /recipes/search?q=... — mencari resep berdasarkan kata kunci (Latihan 1).
+  Future<List<Recipe>> searchRecipes(String query) async {
+    final uri = Uri.parse('$_baseUrl/recipes/search')
+        .replace(queryParameters: {'q': query});
+    final response = await _client.get(uri).timeout(_timeout);
+    _checkStatus(response);
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = body['recipes'] as List<dynamic>;
+
+    return list
+        .map((item) => Recipe.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   /// POST /recipes/add — mengirim resep baru.
   /// dummyjson hanya menyimulasikan penyimpanan: server mengembalikan
   /// data beserta id baru, tetapi resep tidak benar-benar tersimpan.
@@ -49,6 +63,33 @@ class RecipeService {
     _checkStatus(response);
     return Recipe.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
+
+  /// PUT /recipes/{id} — mengubah nama resep (Latihan 2).
+  Future<Recipe> updateRecipe(int id, String name) async {
+    final response = await _client
+        .put(
+          Uri.parse('$_baseUrl/recipes/$id'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'name': name}),
+        )
+        .timeout(_timeout);
+
+    _checkStatus(response);
+    return Recipe.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  /// DELETE /recipes/{id} — menghapus resep (Latihan 2).
+  Future<bool> deleteRecipe(int id) async {
+    final response = await _client
+        .delete(Uri.parse('$_baseUrl/recipes/$id'))
+        .timeout(_timeout);
+
+    _checkStatus(response);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return body['isDeleted'] == true;
+  }
+
+  /// Status 2xx berarti berhasil. Selain itu, lempar exception
   /// agar FutureBuilder masuk ke error state.
   void _checkStatus(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:resepku/models/recipe.dart';
 import 'package:resepku/providers/favorite_provider.dart';
+import 'package:resepku/services/recipe_service.dart';
 
 class DetailPage extends StatefulWidget {
   const DetailPage({super.key, required this.recipe});
@@ -32,6 +33,106 @@ class _DetailPageState extends State<DetailPage> {
     }
   }
 
+  // Latihan 2: Dialog Ubah Nama + Request PUT /recipes/{id}
+  Future<void> _renameRecipe() async {
+    final controller = TextEditingController(text: widget.recipe.name);
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ubah nama resep'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Nama baru',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    if (!mounted || newName == null || newName.isEmpty) return;
+
+    try {
+      final updated = await context
+          .read<RecipeService>()
+          .updateRecipe(widget.recipe.id, newName);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Nama diperbarui menjadi "${updated.name}". '
+            'dummyjson hanya menyimulasikan perubahan.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengubah nama: $e')),
+      );
+    }
+  }
+
+  // Latihan 2: Dialog Konfirmasi + Request DELETE /recipes/{id}
+  Future<void> _deleteRecipe() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus resep?'),
+        content: Text('Resep "${widget.recipe.name}" akan dihapus.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    try {
+      final isDeleted = await context
+          .read<RecipeService>()
+          .deleteRecipe(widget.recipe.id);
+
+      if (!mounted) return;
+      if (isDeleted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${widget.recipe.name}" berhasil dihapus.')),
+        );
+        Navigator.pop(context); // Tutup halaman detail
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghapus resep: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final recipe = widget.recipe;
@@ -54,6 +155,34 @@ class _DetailPageState extends State<DetailPage> {
                 ),
                 onPressed: () =>
                     context.read<FavoriteProvider>().toggle(recipe),
+              ),
+              // Latihan 2: PopupMenuButton setelah tombol favorit
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _renameRecipe();
+                  } else if (value == 'delete') {
+                    _deleteRecipe();
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.edit_outlined),
+                      title: Text('Ubah nama'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.delete_outline, color: Colors.red),
+                      title: Text('Hapus', style: TextStyle(color: Colors.red)),
+                    ),
+                  ),
+                ],
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -142,7 +271,6 @@ class _DetailPageState extends State<DetailPage> {
               );
             },
           ),
-          // ... SliverList.builder untuk bahan (sudah ada dari Latihan 3 Modul 7)
 
           // Judul "Langkah": widget biasa dibungkus SliverToBoxAdapter
           if (recipe.instructions.isNotEmpty)
@@ -153,10 +281,12 @@ class _DetailPageState extends State<DetailPage> {
               ),
             ),
 
-            // Daftar langkah: lazy, sama seperti daftar bahan
-            SliverList.builder(
-              itemCount: recipe.instructions.length,
-              itemBuilder: (context, index) => ListTile(
+          // Daftar langkah: lazy, sama seperti daftar bahan
+          SliverList.builder(
+            itemCount: recipe.instructions.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ListTile(
                 dense: true,
                 leading: CircleAvatar(
                   radius: 12,
@@ -165,9 +295,7 @@ class _DetailPageState extends State<DetailPage> {
                 title: Text(recipe.instructions[index]),
               ),
             ),
-
-            // Ruang di bawah langkah terakhir
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ),
 
           // Jarak bawah agar list terakhir nyaman di-scroll
           const SliverToBoxAdapter(
